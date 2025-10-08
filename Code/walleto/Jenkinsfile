@@ -24,12 +24,13 @@ pipeline {
                     sh '''
                         echo "Installing main dependencies..."
                         npm install --no-audit --no-fund --foreground-scripts=false --prefer-offline
-                        echo "Installing TypeScript globally and locally..."
-                        npm install -g typescript
-                        npm install typescript --save-dev
+
+                        echo "Manually ensuring TypeScript exists locally..."
+                        npm install typescript@latest --save-dev
+
                         echo "Verifying TypeScript installation..."
                         npx tsc --version || true
-                        which tsc || true
+                        ls -la node_modules/typescript/bin || true
                     '''
                 }
             }
@@ -40,9 +41,11 @@ pipeline {
                 echo "🏗️ Building Next.js project..."
                 dir('Code/walleto') {
                     sh '''
-                        echo "Checking TypeScript before build..."
+                        echo "Checking if TypeScript is visible before build..."
                         npx tsc --version || true
-                        npm run build
+                        export NODE_PATH=$(npm root)
+                        echo "NODE_PATH set to: $NODE_PATH"
+                        npm run build || (echo "❌ Build failed! Checking TypeScript..." && ls -R node_modules/typescript || true)
                     '''
                 }
             }
@@ -54,7 +57,6 @@ pipeline {
             }
             steps {
                 echo "🚀 Deployment stage (DEV) - build passed!"
-                // Deployment commands go here
             }
         }
     }
@@ -64,7 +66,7 @@ pipeline {
             echo "✅ Deployment successful!"
         }
         failure {
-            echo "❌ Deployment failed."
+            echo "❌ Deployment failed. Check logs above."
         }
     }
 }
