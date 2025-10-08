@@ -1,18 +1,10 @@
 pipeline {
     agent any
 
-    tools {
-        nodejs "Node18"
-    }
-
-    environment {
-        NODE_ENV = 'production'
-    }
-
     stages {
-        stage('Checkout') {
+        stage('Declarative: Checkout SCM') {
             steps {
-                git branch: 'main', url: 'https://github.com/Sai-Khush/Walleto.git'
+                checkout scm
             }
         }
 
@@ -26,40 +18,50 @@ pipeline {
         }
 
         stage('Install Dependencies') {
-    steps {
-        echo "📦 Installing dependencies in Code/walleto..."
-        dir('Code/walleto') {
-            sh '''
-                npm install --no-audit --no-fund --foreground-scripts=false --prefer-offline
-                npm install typescript --save-dev
-            '''
+            steps {
+                echo "📦 Installing dependencies in Code/walleto..."
+                dir('Code/walleto') {
+                    // Install local and global dependencies
+                    sh '''
+                        npm install --no-audit --no-fund --foreground-scripts=false --prefer-offline
+                        npm install typescript --save-dev
+                        npm install -g typescript
+                        tsc --version
+                    '''
+                }
+            }
         }
-    }
-}
 
         stage('Build') {
             steps {
                 echo "🏗️ Building Next.js project..."
                 dir('Code/walleto') {
-                    sh 'npm run build'
+                    sh '''
+                        echo "Verifying TypeScript before build..."
+                        npx tsc --version
+                        npm run build
+                    '''
                 }
             }
         }
 
         stage('Deploy to DEV') {
+            when {
+                expression { currentBuild.currentResult == 'SUCCESS' }
+            }
             steps {
-                echo "🚀 Deployment stage started..."
-                echo "✅ Deployment completed successfully."
+                echo "🚀 Deploying build to DEV environment..."
+                // Add your deployment logic here (for EC2 or S3)
             }
         }
     }
 
     post {
+        success {
+            echo "✅ Deployment successful."
+        }
         failure {
             echo "❌ Deployment failed."
-        }
-        success {
-            echo "🎉 Deployment completed successfully."
         }
     }
 }
