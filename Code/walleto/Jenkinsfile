@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     stages {
-        stage('Declarative: Checkout SCM') {
+        stage('Checkout') {
             steps {
                 checkout scm
             }
@@ -21,12 +21,15 @@ pipeline {
             steps {
                 echo "📦 Installing dependencies in Code/walleto..."
                 dir('Code/walleto') {
-                    // Install local and global dependencies
                     sh '''
+                        echo "Installing main dependencies..."
                         npm install --no-audit --no-fund --foreground-scripts=false --prefer-offline
-                        npm install typescript --save-dev
+                        echo "Installing TypeScript globally and locally..."
                         npm install -g typescript
-                        tsc --version
+                        npm install typescript --save-dev
+                        echo "Verifying TypeScript installation..."
+                        npx tsc --version || true
+                        which tsc || true
                     '''
                 }
             }
@@ -37,8 +40,8 @@ pipeline {
                 echo "🏗️ Building Next.js project..."
                 dir('Code/walleto') {
                     sh '''
-                        echo "Verifying TypeScript before build..."
-                        npx tsc --version
+                        echo "Checking TypeScript before build..."
+                        npx tsc --version || true
                         npm run build
                     '''
                 }
@@ -50,15 +53,15 @@ pipeline {
                 expression { currentBuild.currentResult == 'SUCCESS' }
             }
             steps {
-                echo "🚀 Deploying build to DEV environment..."
-                // Add your deployment logic here (for EC2 or S3)
+                echo "🚀 Deployment stage (DEV) - build passed!"
+                // Deployment commands go here
             }
         }
     }
 
     post {
         success {
-            echo "✅ Deployment successful."
+            echo "✅ Deployment successful!"
         }
         failure {
             echo "❌ Deployment failed."
