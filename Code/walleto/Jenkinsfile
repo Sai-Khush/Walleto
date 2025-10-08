@@ -1,45 +1,49 @@
 pipeline {
     agent any
 
+    environment {
+        NODE_HOME = tool name: 'Node18', type: 'jenkins.plugins.nodejs.tools.NodeJSInstallation'
+        PATH = "${NODE_HOME}/bin:${env.PATH}"
+    }
+
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                echo '📥 Checking out repository...'
+                checkout([$class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/Sai-Khush/Walleto.git',
+                        credentialsId: 'github-https-pat'
+                    ]]
+                ])
             }
         }
 
         stage('Clean Workspace') {
             steps {
-                echo "🧹 Cleaning old workspace..."
+                echo '🧹 Cleaning old workspace...'
                 dir('Code/walleto') {
-                    sh 'rm -rf node_modules package-lock.json'
+                    sh 'rm -rf node_modules package-lock.json .next'
                 }
             }
         }
 
         stage('Install Dependencies') {
-    steps {
-        echo "📦 Installing dependencies in Code/walleto..."
-        dir('Code/walleto') {
-            sh '''
-                echo "Forcing install of ALL dependencies including devDependencies..."
-                npm install --include=dev --no-audit --no-fund
-            '''
+            steps {
+                echo '📦 Installing ALL dependencies (including devDependencies)...'
+                dir('Code/walleto') {
+                    // Force a full clean install with devDependencies
+                    sh 'npm ci --include=dev'
+                }
+            }
         }
-    }
-}
 
         stage('Build') {
             steps {
-                echo "🏗️ Building Next.js project..."
+                echo '🏗️ Building Next.js project...'
                 dir('Code/walleto') {
-                    sh '''
-                        echo "Checking if TypeScript is visible before build..."
-                        npx tsc --version || true
-                        export NODE_PATH=$(npm root)
-                        echo "NODE_PATH set to: $NODE_PATH"
-                        npm run build || (echo "❌ Build failed! Checking TypeScript..." && ls -R node_modules/typescript || true)
-                    '''
+                    sh 'npm run build'
                 }
             }
         }
@@ -49,17 +53,24 @@ pipeline {
                 expression { currentBuild.currentResult == 'SUCCESS' }
             }
             steps {
-                echo "🚀 Deployment stage (DEV) - build passed!"
+                echo '🚀 Deploying build to DEV environment...'
+                dir('Code/walleto/out') {
+                    sh '''
+                        # Example deploy path (change if needed)
+                        sudo rm -rf /var/www/html/walleto/*
+                        sudo cp -r * /var/www/html/walleto/
+                    '''
+                }
             }
         }
     }
 
     post {
         success {
-            echo "✅ Deployment successful!"
+            echo '✅ Deployment successful!'
         }
         failure {
-            echo "❌ Deployment failed. Check logs above."
+            echo '❌ Deployment failed.'
         }
     }
 }
