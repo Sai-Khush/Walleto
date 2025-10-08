@@ -26,13 +26,16 @@ pipeline {
         }
 
         stage('Install Dependencies') {
-            steps {
-                echo "📦 Installing dependencies in Code/walleto..."
-                dir('Code/walleto') {
-                    sh 'npm install --no-audit --no-fund --foreground-scripts=false --prefer-offline'
-                }
-            }
+    steps {
+        echo "📦 Installing dependencies in Code/walleto..."
+        dir('Code/walleto') {
+            sh '''
+                npm install --no-audit --no-fund --foreground-scripts=false --prefer-offline
+                npm install typescript --save-dev
+            '''
         }
+    }
+}
 
         stage('Build') {
             steps {
