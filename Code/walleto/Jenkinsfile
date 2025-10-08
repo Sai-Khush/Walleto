@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        NODE_ENV = "development"   // 👈 Forces npm to install ALL deps, including dev
+        NODE_ENV = "development"
     }
 
     stages {
@@ -22,19 +22,19 @@ pipeline {
             steps {
                 echo "🧹 Cleaning old workspace..."
                 dir('Code/walleto') {
-                    sh 'rm -rf node_modules package-lock.json'
+                    sh 'rm -rf node_modules package-lock.json .next'
                 }
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                echo "📦 Installing all dependencies (including dev)..."
+                echo "📦 Installing all dependencies..."
                 dir('Code/walleto') {
                     sh '''
                         npm cache clean --force
                         npm install --include=dev
-                        npm list typescript || echo "⚠️ TypeScript not yet installed"
+                        npm list typescript || echo "⚠️ TypeScript not found but continuing..."
                     '''
                 }
             }
@@ -46,32 +46,35 @@ pipeline {
                 dir('Code/walleto') {
                     sh '''
                         npm install -g typescript
-                        npm run build || (echo "❌ Build failed - check TypeScript/Next setup" && exit 1)
+                        npm run build
                     '''
                 }
             }
         }
 
         stage('Deploy to DEV') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
             steps {
                 echo "🚀 Deploying Walleto to DEV environment..."
-                // Example deploy: copy build output to /var/www/html or run PM2
-                sh '''
-                    echo "✅ Deployment simulated (replace with actual deploy command)"
-                '''
+                dir('Code/walleto') {
+                    sh '''
+                        # Stop any running Node process on port 3000
+                        pkill -f "next start" || true
+
+                        # Start Next.js server in background
+                        nohup npm run start > app.log 2>&1 &
+                        echo "✅ Walleto running in background on port 3000"
+                    '''
+                }
             }
         }
     }
 
     post {
         success {
-            echo "✅ Build & Deployment completed successfully!"
+            echo "✅ Jenkins pipeline executed successfully!"
         }
         failure {
-            echo "❌ Deployment failed. Check above logs for cause."
+            echo "❌ Deployment failed. Please check the above logs."
         }
     }
 }
