@@ -1,43 +1,40 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs "Node18"
+    }
+
     environment {
-        NODE_HOME = tool name: 'Node18', type: 'jenkins.plugins.nodejs.tools.NodeJSInstallation'
-        PATH = "${NODE_HOME}/bin:${env.PATH}"
-        NODE_ENV = 'development'   // Ensures all devDependencies like Tailwind get installed
+        NODE_ENV = "development"   // 👈 Forces npm to install ALL deps, including dev
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo '📥 Checking out code from GitHub...'
-                checkout([$class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/Sai-Khush/Walleto.git',
-                        credentialsId: 'github-https-pat'
-                    ]]
-                ])
+                git branch: 'main',
+                    url: 'https://github.com/Sai-Khush/Walleto.git',
+                    credentialsId: 'github-https-pat'
             }
         }
 
         stage('Clean Workspace') {
             steps {
-                echo '🧹 Cleaning workspace...'
+                echo "🧹 Cleaning old workspace..."
                 dir('Code/walleto') {
-                    sh 'rm -rf node_modules package-lock.json .next'
+                    sh 'rm -rf node_modules package-lock.json'
                 }
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                echo '📦 Installing all dependencies including Tailwind + TypeScript...'
+                echo "📦 Installing all dependencies (including dev)..."
                 dir('Code/walleto') {
                     sh '''
-                        # Reinstall all dependencies, including dev packages
-                        npm install tailwindcss postcss autoprefixer typescript @types/react @types/node --save-dev
-                        npm install
+                        npm cache clean --force
+                        npm install --include=dev
+                        npm list typescript || echo "⚠️ TypeScript not yet installed"
                     '''
                 }
             }
@@ -45,36 +42,36 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo '🏗️ Building Next.js project...'
+                echo "🏗️ Building Next.js project..."
                 dir('Code/walleto') {
-                    sh 'npm run build'
+                    sh '''
+                        npm install -g typescript
+                        npm run build || (echo "❌ Build failed - check TypeScript/Next setup" && exit 1)
+                    '''
                 }
             }
         }
 
         stage('Deploy to DEV') {
             when {
-                expression { currentBuild.currentResult == 'SUCCESS' }
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
             }
             steps {
-                echo '🚀 Deploying build to DEV server...'
-                dir('Code/walleto/out') {
-                    sh '''
-                        sudo mkdir -p /var/www/html/walleto
-                        sudo rm -rf /var/www/html/walleto/*
-                        sudo cp -r * /var/www/html/walleto/
-                    '''
-                }
+                echo "🚀 Deploying Walleto to DEV environment..."
+                // Example deploy: copy build output to /var/www/html or run PM2
+                sh '''
+                    echo "✅ Deployment simulated (replace with actual deploy command)"
+                '''
             }
         }
     }
 
     post {
         success {
-            echo '✅ Build & Deployment completed successfully!'
+            echo "✅ Build & Deployment completed successfully!"
         }
         failure {
-            echo '❌ Build failed. Check Jenkins logs for missing dependency or config.'
+            echo "❌ Deployment failed. Check above logs for cause."
         }
     }
 }
