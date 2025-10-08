@@ -18,23 +18,16 @@ pipeline {
         }
 
         stage('Install Dependencies') {
-            steps {
-                echo "📦 Installing dependencies in Code/walleto..."
-                dir('Code/walleto') {
-                    sh '''
-                        echo "Installing main dependencies..."
-                        npm install --no-audit --no-fund --foreground-scripts=false --prefer-offline
-
-                        echo "Manually ensuring TypeScript exists locally..."
-                        npm install typescript@latest --save-dev
-
-                        echo "Verifying TypeScript installation..."
-                        npx tsc --version || true
-                        ls -la node_modules/typescript/bin || true
-                    '''
-                }
-            }
+    steps {
+        echo "📦 Installing dependencies in Code/walleto..."
+        dir('Code/walleto') {
+            sh '''
+                echo "Forcing install of ALL dependencies including devDependencies..."
+                npm install --include=dev --no-audit --no-fund
+            '''
         }
+    }
+}
 
         stage('Build') {
             steps {
