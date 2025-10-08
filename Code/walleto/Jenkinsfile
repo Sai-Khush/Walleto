@@ -4,12 +4,13 @@ pipeline {
     environment {
         NODE_HOME = tool name: 'Node18', type: 'jenkins.plugins.nodejs.tools.NodeJSInstallation'
         PATH = "${NODE_HOME}/bin:${env.PATH}"
+        NODE_ENV = 'development'   // Ensures all devDependencies like Tailwind get installed
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo '📥 Checking out repository...'
+                echo '📥 Checking out code from GitHub...'
                 checkout([$class: 'GitSCM',
                     branches: [[name: '*/main']],
                     userRemoteConfigs: [[
@@ -22,7 +23,7 @@ pipeline {
 
         stage('Clean Workspace') {
             steps {
-                echo '🧹 Cleaning old workspace...'
+                echo '🧹 Cleaning workspace...'
                 dir('Code/walleto') {
                     sh 'rm -rf node_modules package-lock.json .next'
                 }
@@ -31,10 +32,13 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                echo '📦 Installing ALL dependencies (including devDependencies)...'
+                echo '📦 Installing all dependencies including Tailwind + TypeScript...'
                 dir('Code/walleto') {
-                    // Force a full clean install with devDependencies
-                    sh 'npm ci --include=dev'
+                    sh '''
+                        # Reinstall all dependencies, including dev packages
+                        npm install tailwindcss postcss autoprefixer typescript @types/react @types/node --save-dev
+                        npm install
+                    '''
                 }
             }
         }
@@ -53,10 +57,10 @@ pipeline {
                 expression { currentBuild.currentResult == 'SUCCESS' }
             }
             steps {
-                echo '🚀 Deploying build to DEV environment...'
+                echo '🚀 Deploying build to DEV server...'
                 dir('Code/walleto/out') {
                     sh '''
-                        # Example deploy path (change if needed)
+                        sudo mkdir -p /var/www/html/walleto
                         sudo rm -rf /var/www/html/walleto/*
                         sudo cp -r * /var/www/html/walleto/
                     '''
@@ -67,10 +71,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Deployment successful!'
+            echo '✅ Build & Deployment completed successfully!'
         }
         failure {
-            echo '❌ Deployment failed.'
+            echo '❌ Build failed. Check Jenkins logs for missing dependency or config.'
         }
     }
 }
