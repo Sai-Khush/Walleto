@@ -1,4 +1,6 @@
 # Walleto - Budget Analysis/Management System
+# Trigger test
+
 
 Welcome to Walleto! This is a digital budget management application built with Next.js. Follow the simple steps below to get it running on your computer.
 
